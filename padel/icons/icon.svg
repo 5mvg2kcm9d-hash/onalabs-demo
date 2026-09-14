@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Padel scorebord">
+  <rect width="512" height="512" fill="#0a1017"/>
+  <rect x="36" y="36" width="440" height="440" rx="51" fill="#14395f"/>
+  <g fill="none" stroke="#2f81f7" stroke-width="8">
+    <rect x="84" y="170" width="344" height="172"/>
+    <path d="M144 170v172M368 170v172M144 256h224"/>
+  </g>
+  <rect x="248" y="160" width="16" height="192" fill="#21b57a"/>
+  <circle cx="369" cy="125" r="30" fill="#f5e03c"/>
+</svg>

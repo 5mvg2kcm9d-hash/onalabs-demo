@@ -1,0 +1,24 @@
+{
+  "name": "Padel scorebord",
+  "short_name": "Padel",
+  "description": "Score bijhouden voor padelwedstrijden, Americano's en Mexicano's. Werkt offline.",
+  "lang": "nl",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1017",
+  "theme_color": "#0a1017",
+  "categories": ["sports", "utilities"],
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Nieuwe wedstrijd", "url": "./#/new" },
+    { "name": "Americano", "url": "./#/tournament/new" }
+  ]
+}

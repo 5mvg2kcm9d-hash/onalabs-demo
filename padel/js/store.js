@@ -15,6 +15,7 @@ const KEYS = {
 };
 
 export const DEFAULT_SETTINGS = {
+  language: 'auto',
   keepAwake: true,
   haptics: true,
   lastMatchConfig: null,
@@ -146,7 +147,7 @@ export function exportAll() {
 }
 
 export function importAll(data) {
-  if (!data || data.app !== 'padel-scorebord') throw new Error('Dit bestand komt niet uit deze app.');
+  if (!data || data.app !== 'padel-scorebord') throw new Error('import.invalid');
   if (Array.isArray(data.players)) savePlayers(data.players);
   if (Array.isArray(data.history)) write(KEYS.history, data.history);
   if (data.settings) saveSettings(data.settings);

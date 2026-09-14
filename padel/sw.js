@@ -4,7 +4,7 @@
  * in the background.
  */
 
-const VERSION = 'padel-v1';
+const VERSION = 'padel-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const ASSETS = [
   './js/tournament.js',
   './js/store.js',
   './js/stats.js',
+  './js/i18n.js',
   './js/dom.js',
   './icons/icon.svg',
   './icons/icon-192.png',

@@ -38,22 +38,6 @@ export function when(condition, value) {
   return raw(typeof value === 'function' ? value() : value);
 }
 
-export function formatDate(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-  if (sameDay) return `Vandaag ${time}`;
-  const yesterday = new Date(today.getTime() - 86400000);
-  if (d.toDateString() === yesterday.toDateString()) return `Gisteren ${time}`;
-  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: '2-digit' }) + ' ' + time;
-}
-
-export function plural(n, one, many) {
-  return `${n} ${n === 1 ? one : many}`;
-}
-
 export function percent(fraction) {
   return `${Math.round((fraction || 0) * 100)}%`;
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { html, raw, when, esc, plural, percent, formatDate } from '../js/dom.js';
+import { html, raw, when, esc, percent } from '../js/dom.js';
 
 test('interpolated values are escaped', () => {
   const name = '<img src=x onerror="alert(1)">';
@@ -46,14 +46,8 @@ test('esc handles non-strings', () => {
   assert.equal(esc(null), '');
 });
 
-test('plural and percent', () => {
-  assert.equal(plural(1, 'speler', 'spelers'), '1 speler');
-  assert.equal(plural(3, 'speler', 'spelers'), '3 spelers');
+test('percent rounds to whole numbers', () => {
   assert.equal(percent(0.666), '67%');
   assert.equal(percent(0), '0%');
-});
-
-test('formatDate is empty for a missing timestamp', () => {
-  assert.equal(formatDate(null), '');
-  assert.ok(formatDate(Date.now()).startsWith('Vandaag'));
+  assert.equal(percent(undefined), '0%');
 });

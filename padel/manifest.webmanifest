@@ -1,8 +1,8 @@
 {
-  "name": "Padel scorebord",
+  "name": "Padel scoreboard",
   "short_name": "Padel",
-  "description": "Score bijhouden voor padelwedstrijden, Americano's en Mexicano's. Werkt offline.",
-  "lang": "nl",
+  "description": "Keep score for padel matches, Americanos and Mexicanos. Works offline.",
+  "lang": "en",
   "dir": "ltr",
   "start_url": "./",
   "scope": "./",
@@ -18,7 +18,7 @@
     { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
-    { "name": "Nieuwe wedstrijd", "url": "./#/new" },
+    { "name": "New match", "url": "./#/new" },
     { "name": "Americano", "url": "./#/tournament/new" }
   ]
 }

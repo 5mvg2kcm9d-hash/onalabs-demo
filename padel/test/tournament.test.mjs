@@ -86,7 +86,7 @@ test('a sitting player is never also on court', () => {
 });
 
 test('fewer than four players is refused', () => {
-  assert.throws(() => generateRound(make(3)), /minstens 4 spelers/);
+  assert.throws(() => generateRound(make(3)), /tour.minPlayers/);
 });
 
 test('total-points format ends the match at exactly the target', () => {

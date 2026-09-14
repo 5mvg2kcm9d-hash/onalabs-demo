@@ -11,26 +11,8 @@ export const DEUCE_ADVANTAGE = 'advantage';
 export const DEUCE_GOLDEN = 'golden';
 export const DEUCE_STAR = 'star';
 
-export const DEUCE_MODES = [
-  {
-    id: DEUCE_ADVANTAGE,
-    name: 'Voordeel',
-    short: 'Voordeel',
-    hint: 'Klassiek: bij 40-40 speel je door tot iemand twee punten voorsprong heeft.'
-  },
-  {
-    id: DEUCE_GOLDEN,
-    name: 'Gouden punt',
-    short: 'Gouden punt',
-    hint: 'Bij 40-40 beslist één punt. Het ontvangende koppel kiest de kant.'
-  },
-  {
-    id: DEUCE_STAR,
-    name: 'Star point (FIP 2026)',
-    short: 'Star point',
-    hint: 'Twee keer voordeel spelen; staat het daarna nog gelijk, dan beslist één star point.'
-  }
-];
+/** Order shown in the settings; the labels live in i18n.js. */
+export const DEUCE_MODE_IDS = [DEUCE_ADVANTAGE, DEUCE_GOLDEN, DEUCE_STAR];
 
 export const DEFAULT_CONFIG = {
   bestOf: 3,
@@ -63,16 +45,17 @@ export function createMatch({ teamA, teamB, config = {} } = {}) {
     finishedAt: null,
     config: { ...DEFAULT_CONFIG, ...config },
     teams: {
-      A: normaliseTeam(teamA, 'Team 1'),
-      B: normaliseTeam(teamB, 'Team 2')
+      A: normaliseTeam(teamA),
+      B: normaliseTeam(teamB)
     },
     points: []
   };
 }
 
-function normaliseTeam(team, fallbackName) {
+/** An unnamed team keeps an empty name; the views translate the fallback. */
+function normaliseTeam(team) {
   const players = (team && team.players ? team.players : []).map((p) => String(p || '').trim()).filter(Boolean);
-  const name = (team && team.name ? String(team.name).trim() : '') || players.join(' & ') || fallbackName;
+  const name = (team && team.name ? String(team.name).trim() : '') || players.join(' & ');
   return { name, players };
 }
 
@@ -213,7 +196,7 @@ export function computeState(match) {
       : { A: pointLabel(pts.A, pts.B), B: pointLabel(pts.B, pts.A) },
     deuce: inTiebreak ? 0 : deuceNumber(pts.A, pts.B),
     decidingPoint: !finished && !inTiebreak && isDecidingPoint(pts.A, pts.B, config.deuceMode),
-    serve: finished ? null : { ...serve, side: rallies % 2 === 0 ? 'rechts' : 'links' },
+    serve: finished ? null : { ...serve, side: rallies % 2 === 0 ? 'right' : 'left' },
     changeEnds: !finished && changeEnds,
     gamesCompleted,
     totalRallies: match.points.length

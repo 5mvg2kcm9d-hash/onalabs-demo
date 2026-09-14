@@ -1,19 +1,33 @@
 /**
  * Every screen, as a pure function from state to an HTML string.
  * Interaction happens through data-action attributes; app.js does the wiring.
+ * All display text comes from i18n.js -- no literal copy lives here.
  */
 
-import { html, raw, when, esc, formatDate, plural, percent } from './dom.js';
-import { DEUCE_MODES, computeState, scoreline } from './engine.js';
+import { html, raw, when, esc, percent } from './dom.js';
+import { t, formatDate, LANGUAGES, getLanguage, languageName, detectLanguage } from './i18n.js';
+import { DEUCE_MODE_IDS, computeState, scoreline } from './engine.js';
 import { standings, isMatchComplete, scoreLimits, roundComplete, FORMAT_TOTAL, FORMAT_FIRST_TO } from './tournament.js';
 
 const BACK = '‹';
+
+/** Teams may be unnamed; fall back to the players, then to "Team 1"/"Team 2". */
+function teamLabel(teams, team) {
+  const info = teams ? teams[team] : null;
+  const named = info && info.name ? info.name : '';
+  const fromPlayers = ((info && info.players) || []).filter(Boolean).join(' & ');
+  return named || fromPlayers || t('match.team', { n: team === 'A' ? 1 : 2 });
+}
+
+function tournamentLabel(tournament) {
+  return tournament.name || t(tournament.type === 'mexicano' ? 'tour.mexicano' : 'tour.americano');
+}
 
 export function topbar(title, { back = null, right = '' } = {}) {
   return html`
     <header class="topbar">
       ${back
-        ? raw(`<button class="icon-btn ghost" data-action="nav" data-href="${esc(back)}" aria-label="Terug">${BACK}</button>`)
+        ? raw(`<button class="icon-btn ghost" data-action="nav" data-href="${esc(back)}" aria-label="${esc(t('a11y.back'))}">${BACK}</button>`)
         : raw('<span style="min-width:44px"></span>')}
       <h1>${title}</h1>
       ${raw(right || '<span style="min-width:44px"></span>')}
@@ -25,13 +39,13 @@ export function topbar(title, { back = null, right = '' } = {}) {
 
 export function homeView({ live, history, totals }) {
   const recent = history.slice(0, 3);
+  const settings = `<button class="icon-btn ghost" data-action="nav" data-href="#/settings" aria-label="${esc(t('a11y.settings'))}">⚙︎</button>`;
+
   return html`
-    ${raw(topbar('Padel scorebord', {
-      right: '<button class="icon-btn ghost" data-action="nav" data-href="#/settings" aria-label="Instellingen">⚙︎</button>'
-    }))}
+    ${raw(topbar(t('app.title'), { right: settings }))}
     <main class="screen">
       <div class="hero">
-        <p>Tel de score zonder gedoe. Alles blijft op je telefoon.</p>
+        <p>${t('home.tagline')}</p>
       </div>
 
       ${when(live, () => resumeTile(live))}
@@ -39,41 +53,41 @@ export function homeView({ live, history, totals }) {
       <button class="tile" data-action="nav" data-href="#/new">
         <span class="tile-icon">🎾</span>
         <span class="tile-body">
-          <strong>Nieuwe wedstrijd</strong>
-          <span>2 tegen 2, sets en tiebreak</span>
+          <strong>${t('home.newMatch')}</strong>
+          <span>${t('home.newMatchSub')}</span>
         </span>
       </button>
 
       <button class="tile alt" data-action="nav" data-href="#/tournament/new">
         <span class="tile-icon">🏆</span>
         <span class="tile-body">
-          <strong>Americano of Mexicano</strong>
-          <span>4 tot 16 spelers, wisselende koppels</span>
+          <strong>${t('home.tournament')}</strong>
+          <span>${t('home.tournamentSub')}</span>
         </span>
       </button>
 
       <div class="grid-2">
         <button class="tile compact" data-action="nav" data-href="#/history">
           <span class="tile-body">
-            <strong>Historie</strong>
-            <span>${totals.matches + totals.tournaments} gespeeld</span>
+            <strong>${t('home.history')}</strong>
+            <span>${t('home.played', { count: totals.matches + totals.tournaments })}</span>
           </span>
         </button>
         <button class="tile compact" data-action="nav" data-href="#/stats">
           <span class="tile-body">
-            <strong>Statistieken</strong>
-            <span>ranglijst</span>
+            <strong>${t('home.stats')}</strong>
+            <span>${t('home.statsSub')}</span>
           </span>
         </button>
       </div>
 
       ${when(recent.length > 0, () => html`
-        <div class="card-title" style="margin-top:6px">Laatste wedstrijden</div>
+        <div class="card-title" style="margin-top:6px">${t('home.recent')}</div>
         <div class="list">${recent.map(historyRow)}</div>
       `)}
 
       <button class="icon-btn ghost" data-action="nav" data-href="#/players" style="align-self:center;margin-top:4px">
-        Spelers beheren
+        ${t('home.players')}
       </button>
     </main>
   `;
@@ -82,14 +96,14 @@ export function homeView({ live, history, totals }) {
 function resumeTile(live) {
   const isMatch = live.kind === 'match';
   const label = isMatch
-    ? `${live.teams.A.name} vs ${live.teams.B.name}`
-    : `${live.name} · ronde ${live.rounds.length}`;
-  const sub = isMatch ? scoreline(live) : plural(live.players.length, 'speler', 'spelers');
+    ? `${teamLabel(live.teams, 'A')} vs ${teamLabel(live.teams, 'B')}`
+    : `${tournamentLabel(live)} · ${t('tour.round', { n: live.rounds.length })}`;
+  const sub = isMatch ? scoreline(live) : t('tour.playerCount', { count: live.players.length });
   return html`
     <button class="tile resume" data-action="nav" data-href="${isMatch ? '#/match' : '#/tournament'}">
       <span class="tile-icon">⏱️</span>
       <span class="tile-body">
-        <strong>Hervat: ${label}</strong>
+        <strong>${t('home.resume', { label })}</strong>
         <span>${sub}</span>
       </span>
     </button>
@@ -100,64 +114,62 @@ function resumeTile(live) {
 
 export function newMatchView({ draft, players }) {
   const datalist = `<datalist id="roster">${players.map((p) => `<option value="${esc(p.name)}"></option>`).join('')}</datalist>`;
+  const hint = t(`deuce.${draft.config.deuceMode}.hint`);
+
   return html`
-    ${raw(topbar('Nieuwe wedstrijd', { back: '#/' }))}
+    ${raw(topbar(t('match.new'), { back: '#/' }))}
     <main class="screen">
       ${raw(datalist)}
 
       <div class="card">
-        <div class="card-title">Team 1</div>
-        ${raw(nameInput('a0', draft.teamA[0], 'Speler 1'))}
-        ${raw(nameInput('a1', draft.teamA[1], 'Speler 2'))}
+        <div class="card-title">${t('match.team', { n: 1 })}</div>
+        ${raw(nameInput('a0', draft.teamA[0], t('match.player', { n: 1 })))}
+        ${raw(nameInput('a1', draft.teamA[1], t('match.player', { n: 2 })))}
       </div>
 
-      <button class="icon-btn" data-action="swap-teams" style="align-self:center">⇅ Wissel teams</button>
+      <button class="icon-btn" data-action="swap-teams" style="align-self:center">⇅ ${t('match.swap')}</button>
 
       <div class="card">
-        <div class="card-title">Team 2</div>
-        ${raw(nameInput('b0', draft.teamB[0], 'Speler 3'))}
-        ${raw(nameInput('b1', draft.teamB[1], 'Speler 4'))}
+        <div class="card-title">${t('match.team', { n: 2 })}</div>
+        ${raw(nameInput('b0', draft.teamB[0], t('match.player', { n: 3 })))}
+        ${raw(nameInput('b1', draft.teamB[1], t('match.player', { n: 4 })))}
       </div>
 
       <div class="card">
-        <div class="card-title">Wedstrijdvorm</div>
+        <div class="card-title">${t('match.format')}</div>
 
         <div class="field">
-          <label>Aantal sets</label>
+          <label>${t('match.sets')}</label>
           ${raw(segmented('bestOf', [
-            { value: 1, label: '1 set' },
-            { value: 3, label: 'Best of 3' },
-            { value: 5, label: 'Best of 5' }
+            { value: 1, label: t('match.oneSet') },
+            { value: 3, label: t('match.bestOf', { n: 3 }) },
+            { value: 5, label: t('match.bestOf', { n: 5 }) }
           ], draft.config.bestOf))}
         </div>
 
         <div class="field">
-          <label>Games per set</label>
-          ${raw(segmented('gamesPerSet', [
-            { value: 4, label: '4' },
-            { value: 6, label: '6' },
-            { value: 9, label: '9' }
-          ], draft.config.gamesPerSet))}
+          <label>${t('match.gamesPerSet')}</label>
+          ${raw(segmented('gamesPerSet', [4, 6, 9].map((v) => ({ value: v, label: String(v) })), draft.config.gamesPerSet))}
         </div>
 
         <div class="field">
-          <label>Bij 40-40</label>
-          ${raw(segmented('deuceMode', DEUCE_MODES.map((m) => ({ value: m.id, label: m.short })), draft.config.deuceMode))}
-          <p class="faint">${DEUCE_MODES.find((m) => m.id === draft.config.deuceMode)?.hint || ''}</p>
+          <label>${t('match.atDeuce')}</label>
+          ${raw(segmented('deuceMode', DEUCE_MODE_IDS.map((id) => ({ value: id, label: t(`deuce.${id}`) })), draft.config.deuceMode))}
+          <p class="faint">${hint}</p>
         </div>
 
         ${when(draft.config.bestOf > 1, () => html`
           <div class="switch-row">
-            <span class="label">Beslissende set als super&nbsp;tiebreak
-              <span class="faint" style="display:block;font-weight:400">Tot 10 punten in plaats van een hele set</span>
+            <span class="label">${t('match.superTiebreak')}
+              <span class="faint" style="display:block;font-weight:400">${t('match.superTiebreakSub')}</span>
             </span>
             ${raw(toggle('finalSetSuperTiebreak', draft.config.finalSetSuperTiebreak))}
           </div>
         `)}
       </div>
 
-      <button class="btn btn-primary" data-action="start-match">Start wedstrijd</button>
-      <p class="faint" style="text-align:center">Namen zijn optioneel — laat leeg en je speelt als Team 1 en Team 2.</p>
+      <button class="btn btn-primary" data-action="start-match">${t('match.start')}</button>
+      <p class="faint" style="text-align:center">${t('match.namesOptional')}</p>
     </main>
   `;
 }
@@ -181,7 +193,7 @@ function segmented(key, options, current) {
 
 function toggle(key, on) {
   return `<button type="button" class="toggle" data-action="draft-toggle" data-key="${key}"
-    aria-pressed="${on ? 'true' : 'false'}" aria-label="Aan of uit"><span></span></button>`;
+    aria-pressed="${on ? 'true' : 'false'}" aria-label="${esc(t('a11y.toggle'))}"><span></span></button>`;
 }
 
 // ---------------------------------------------------------------- live match
@@ -190,14 +202,14 @@ export function matchView(match) {
   const state = computeState(match);
 
   return html`
-    ${raw(topbar(state.finished ? 'Uitslag' : 'Wedstrijd', { back: '#/' }))}
+    ${raw(topbar(state.finished ? t('live.result') : t('live.match'), { back: '#/' }))}
     <main class="board">
       <div class="setline">
-        ${state.completedSets.map((s, i) => html`<span class="set">Set ${i + 1}: ${s.A}-${s.B}</span>`)}
-        ${when(state.completedSets.length === 0, '<span class="set">Eerste set</span>')}
+        ${state.completedSets.map((s, i) => html`<span class="set">${t('live.setScore', { n: i + 1, a: s.A, b: s.B })}</span>`)}
+        ${when(state.completedSets.length === 0, () => html`<span class="set">${t('live.firstSet')}</span>`)}
       </div>
 
-      ${raw(matchBanner(state))}
+      ${matchBanner(match, state)}
 
       <div class="teams">
         ${raw(teamPanel('A', match, state))}
@@ -205,70 +217,78 @@ export function matchView(match) {
       </div>
 
       ${state.finished
-        ? raw(`
+        ? html`
           <div class="board-actions">
-            <button class="btn" data-action="undo">↩ Toch verder</button>
-            <button class="btn btn-accent" data-action="finish-match">Opslaan</button>
-          </div>`)
-        : raw(`
-          <p class="tap-hint">Tik op een team om dat punt toe te kennen</p>
+            <button class="btn" data-action="undo">↩ ${t('live.keepPlaying')}</button>
+            <button class="btn btn-accent" data-action="finish-match">${t('live.save')}</button>
+          </div>`
+        : html`
+          <p class="tap-hint">${t('live.tapHint')}</p>
           <div class="board-actions">
-            <button class="btn" data-action="abandon-match">Stoppen</button>
-            <button class="btn" data-action="undo" ${match.points.length ? '' : 'disabled'}>↩ Undo</button>
-          </div>`)}
+            <button class="btn" data-action="abandon-match">${t('live.stop')}</button>
+            <button class="btn" data-action="undo" ${raw(match.points.length ? '' : 'disabled')}>↩ ${t('live.undo')}</button>
+          </div>`}
     </main>
   `;
 }
 
-function matchBanner(state) {
+function matchBanner(match, state) {
   if (state.finished) {
-    return html`<div class="banner">🏆 ${state.winner === 'A' ? 'Team 1' : 'Team 2'} wint</div>`;
+    return html`<div class="banner">🏆 ${t('live.wins', { team: teamLabel(match.teams, state.winner) })}</div>`;
   }
   if (state.decidingPoint) {
-    const label = state.config.deuceMode === 'star' ? 'Star point' : 'Gouden punt';
-    return html`<div class="banner hot">⭐ ${label} — het ontvangende koppel kiest de kant</div>`;
+    const label = t(`deuce.${state.config.deuceMode}`);
+    return html`<div class="banner hot">⭐ ${t('live.deciding', { label })}</div>`;
   }
   if (state.inTiebreak) {
-    const kind = state.isSuperTiebreak ? 'Super tiebreak' : 'Tiebreak';
-    return html`<div class="banner">${kind} tot ${state.tiebreakTarget}${state.changeEnds ? ' · wissel van kant' : ''}</div>`;
+    const kind = t(state.isSuperTiebreak ? 'live.superTiebreak' : 'live.tiebreak', { n: state.tiebreakTarget });
+    return html`<div class="banner">${kind}${state.changeEnds ? ` · ${t('live.changeEndsShort')}` : ''}</div>`;
   }
   if (state.changeEnds) {
-    return html`<div class="banner">🔄 Wissel van kant</div>`;
+    return html`<div class="banner">🔄 ${t('live.changeEnds')}</div>`;
   }
   if (state.deuce > 1) {
-    return html`<div class="banner calm">Deuce ${state.deuce}</div>`;
+    return html`<div class="banner calm">${t('live.deuce', { n: state.deuce })}</div>`;
   }
-  const serving = state.serve ? `Service: ${state.serve.team === 'A' ? 'team 1' : 'team 2'}, van ${state.serve.side}` : '';
-  return html`<div class="banner calm">${serving}</div>`;
+  if (!state.serve) return html`<div class="banner calm"></div>`;
+  return html`<div class="banner calm">${t('live.serving', {
+    team: t('live.teamShort', { n: state.serve.team === 'A' ? 1 : 2 }),
+    side: t(`live.${state.serve.side}`)
+  })}</div>`;
 }
 
 function teamPanel(team, match, state) {
-  const info = match.teams[team];
-  const players = info.players.length ? info.players : [team === 'A' ? 'Speler 1' : 'Speler 2', team === 'A' ? 'Speler 3' : 'Speler 4'];
+  const label = teamLabel(match.teams, team);
+  const given = (match.teams[team].players || []).filter(Boolean);
+  const players = given.length ? given : [t('match.player', { n: team === 'A' ? 1 : 3 }), t('match.player', { n: team === 'A' ? 2 : 4 })];
   const serving = state.serve && state.serve.team === team ? state.serve.player : -1;
   const isWinner = state.finished && state.winner === team;
-  const score = state.display[team];
 
   const playerRows = players
     .map((name, i) => {
       const on = i === serving;
-      return `<span class="player${on ? ' serving' : ''}"><span class="serve-dot"></span>${esc(name)}${on ? ' <span class="sr-only">(serveert)</span>' : ''}</span>`;
+      return `<span class="player${on ? ' serving' : ''}"><span class="serve-dot"></span>${esc(name)}${
+        on ? ` <span class="sr-only">${esc(t('a11y.serving'))}</span>` : ''
+      }</span>`;
     })
     .join('');
 
+  const games = state.games[team];
   const sets = state.setsWon[team];
+  const setPart = sets ? ` · <b>${sets}</b> ${esc(t('live.sets', { count: sets }))}` : '';
+
   return `
     <button class="team-panel ${team.toLowerCase()}${isWinner ? ' winner' : ''}"
       data-action="score" data-team="${team}" ${state.finished ? 'disabled' : ''}
-      aria-label="Punt voor ${esc(info.name)}">
+      aria-label="${esc(t('a11y.pointFor', { team: label }))}">
       <span class="team-meta">
-        <span class="team-name">${esc(info.name)}</span>
+        <span class="team-name">${esc(label)}</span>
         <span class="team-players">${playerRows}</span>
         <span class="team-games">
-          <b>${state.games[team]}</b> games${sets ? ` · <b>${sets}</b> set${sets === 1 ? '' : 's'}` : ''}
+          <b>${games}</b> ${esc(t('live.games', { count: games }))}${setPart}
         </span>
       </span>
-      <span class="team-score${state.inTiebreak ? ' small' : ''}">${esc(score)}</span>
+      <span class="team-score${state.inTiebreak ? ' small' : ''}">${esc(state.display[team])}</span>
     </button>`;
 }
 
@@ -278,25 +298,22 @@ export function newTournamentView({ draft, players }) {
   const selected = draft.players;
   const canStart = selected.length >= 4;
   const courtsMax = Math.max(1, Math.floor(selected.length / 4));
+  const resting = selected.length - courtsMax * 4;
 
   return html`
-    ${raw(topbar('Nieuw toernooi', { back: '#/' }))}
+    ${raw(topbar(t('tour.new'), { back: '#/' }))}
     <main class="screen">
       <div class="card">
-        <div class="card-title">Vorm</div>
+        <div class="card-title">${t('tour.format')}</div>
         ${raw(segmented('type', [
-          { value: 'americano', label: 'Americano' },
-          { value: 'mexicano', label: 'Mexicano' }
+          { value: 'americano', label: t('tour.americano') },
+          { value: 'mexicano', label: t('tour.mexicano') }
         ], draft.type))}
-        <p class="faint">
-          ${draft.type === 'mexicano'
-            ? 'Mexicano: na elke ronde bepaalt de stand de koppels. Nummer 1 speelt met nummer 4 tegen 2 en 3, dus de partijen blijven spannend.'
-            : 'Americano: iedereen speelt om de beurt met iedereen. Elk punt dat je wint telt voor jezelf.'}
-        </p>
+        <p class="faint">${t(draft.type === 'mexicano' ? 'tour.mexicanoHint' : 'tour.americanoHint')}</p>
       </div>
 
       <div class="card">
-        <div class="card-title">Spelers (${selected.length})</div>
+        <div class="card-title">${t('tour.players', { count: selected.length })}</div>
         <div class="stack">
           ${players.map((p) => html`
             <button class="pick" data-action="toggle-player" data-id="${p.id}" aria-pressed="${selected.some((s) => s.id === p.id)}">
@@ -305,39 +322,37 @@ export function newTournamentView({ draft, players }) {
             </button>
           `)}
         </div>
-        ${when(players.length === 0, '<p class="faint">Nog geen spelers. Voeg ze hieronder toe.</p>')}
+        ${when(players.length === 0, () => html`<p class="faint">${t('tour.noPlayers')}</p>`)}
         <form data-action="add-player-form" class="btn-row" style="margin-top:10px">
-          <input type="text" name="name" placeholder="Naam toevoegen" autocomplete="off" autocapitalize="words" aria-label="Naam toevoegen">
+          <input type="text" name="name" placeholder="${esc(t('tour.addName'))}" autocomplete="off" autocapitalize="words" aria-label="${esc(t('tour.addName'))}">
           <button type="submit" class="btn" style="flex:0 0 auto;width:auto;padding:0 18px">+</button>
         </form>
       </div>
 
       <div class="card">
-        <div class="card-title">Banen</div>
+        <div class="card-title">${t('tour.courts')}</div>
         ${raw(segmented('courts', Array.from({ length: courtsMax }, (_, i) => ({ value: i + 1, label: `${i + 1}` })), Math.min(draft.courts, courtsMax)))}
         <p class="faint">
-          ${selected.length % 4 === 0 || selected.length < 4
-            ? 'Iedereen speelt elke ronde.'
-            : `${plural(selected.length - courtsMax * 4, 'speler', 'spelers')} rust per ronde — de app wisselt dat eerlijk af.`}
+          ${resting <= 0
+            ? t('tour.everyonePlays')
+            : t('tour.resting', { count: t('tour.playerCount', { count: resting }) })}
         </p>
       </div>
 
       <div class="card">
-        <div class="card-title">Punten per ronde</div>
+        <div class="card-title">${t('tour.pointsPerRound')}</div>
         ${raw(segmented('formatMode', [
-          { value: FORMAT_TOTAL, label: 'Totaal' },
-          { value: FORMAT_FIRST_TO, label: 'Eerste tot' }
+          { value: FORMAT_TOTAL, label: t('tour.total') },
+          { value: FORMAT_FIRST_TO, label: t('tour.firstTo') }
         ], draft.format.mode))}
         ${raw(segmented('formatPoints', [16, 21, 24, 32].map((v) => ({ value: v, label: String(v) })), draft.format.points))}
         <p class="faint">
-          ${draft.format.mode === FORMAT_TOTAL
-            ? `Elke ronde gaat tot ${draft.format.points} punten in totaal; elk gewonnen punt telt voor jou.`
-            : `De ronde stopt zodra een koppel ${draft.format.points} punten heeft.`}
+          ${t(draft.format.mode === FORMAT_TOTAL ? 'tour.totalHint' : 'tour.firstToHint', { points: draft.format.points })}
         </p>
       </div>
 
-      <button class="btn btn-primary" data-action="start-tournament" ${canStart ? '' : 'disabled'}>
-        ${canStart ? 'Start toernooi' : 'Kies minstens 4 spelers'}
+      <button class="btn btn-primary" data-action="start-tournament" ${raw(canStart ? '' : 'disabled')}>
+        ${canStart ? t('tour.start') : t('tour.needFour')}
       </button>
     </main>
   `;
@@ -353,33 +368,33 @@ export function tournamentView(tournament) {
   const name = (id) => names.get(id) || '?';
 
   return html`
-    ${raw(topbar(tournament.name, { back: '#/' }))}
+    ${raw(topbar(tournamentLabel(tournament), { back: '#/' }))}
     <main class="screen">
       <div class="chip-row">
-        <span class="chip">Ronde ${round ? round.number : 0}</span>
-        <span class="chip">${plural(tournament.players.length, 'speler', 'spelers')}</span>
-        <span class="chip">${tournament.format.mode === FORMAT_TOTAL ? 'tot' : 'eerste tot'} ${tournament.format.points}</span>
+        <span class="chip">${t('tour.round', { n: round ? round.number : 0 })}</span>
+        <span class="chip">${t('tour.playerCount', { count: tournament.players.length })}</span>
+        <span class="chip">${t(tournament.format.mode === FORMAT_TOTAL ? 'tour.chipTotal' : 'tour.chipFirstTo', { n: tournament.format.points })}</span>
       </div>
 
       ${when(round && round.sitOut.length > 0, () =>
-        html`<div class="banner calm">Rust deze ronde: ${round.sitOut.map(name).join(', ')}</div>`)}
+        html`<div class="banner calm">${t('tour.restingNow', { names: round.sitOut.map(name).join(', ') })}</div>`)}
 
       ${round ? raw(round.matches.map((m) => matchCard(m, tournament, name)).join('')) : raw('')}
 
       <div class="btn-row">
-        <button class="btn ${done ? 'btn-primary' : ''}" data-action="next-round" ${done ? '' : 'disabled'}>
-          ${done ? 'Volgende ronde' : 'Vul alle uitslagen in'}
+        <button class="btn ${done ? 'btn-primary' : ''}" data-action="next-round" ${raw(done ? '' : 'disabled')}>
+          ${done ? t('tour.nextRound') : t('tour.fillScores')}
         </button>
       </div>
 
       <div class="card">
-        <div class="card-title">Stand</div>
+        <div class="card-title">${t('tour.standings')}</div>
         ${raw(standingsTable(table))}
       </div>
 
       <div class="btn-row">
-        <button class="btn" data-action="abandon-tournament">Stoppen</button>
-        <button class="btn btn-accent" data-action="finish-tournament">Afronden</button>
+        <button class="btn" data-action="abandon-tournament">${t('tour.stop')}</button>
+        <button class="btn btn-accent" data-action="finish-tournament">${t('tour.finish')}</button>
       </div>
     </main>
   `;
@@ -388,6 +403,8 @@ export function tournamentView(tournament) {
 function matchCard(match, tournament, name) {
   const limits = scoreLimits(match, tournament.format);
   const complete = isMatchComplete(match, tournament.format);
+  const played = match.scoreA + match.scoreB;
+
   const side = (team) => {
     const ids = team === 'A' ? match.teamA : match.teamB;
     const score = team === 'A' ? match.scoreA : match.scoreB;
@@ -396,23 +413,27 @@ function matchCard(match, tournament, name) {
         <span class="names">${ids.map(name).map(esc).join(' &amp; ')}</span>
         <span class="stepper">
           <button data-action="tscore" data-match="${match.id}" data-team="${team}" data-delta="-1"
-            ${score <= 0 ? 'disabled' : ''} aria-label="Punt eraf">−</button>
+            ${score <= 0 ? 'disabled' : ''} aria-label="−">−</button>
           <span class="value">${score}</span>
           <button data-action="tscore" data-match="${match.id}" data-team="${team}" data-delta="1"
-            ${score >= limits[team] ? 'disabled' : ''} aria-label="Punt erbij">+</button>
+            ${score >= limits[team] ? 'disabled' : ''} aria-label="+">+</button>
         </span>
       </div>`;
   };
+
   return `
     <div class="match-card${complete ? ' done' : ''}">
-      <div class="match-head"><span>Baan ${match.court}</span><span>${complete ? 'klaar' : `${match.scoreA + match.scoreB} punten`}</span></div>
+      <div class="match-head">
+        <span>${esc(t('tour.court', { n: match.court }))}</span>
+        <span>${esc(complete ? t('tour.done') : t('tour.pointsSoFar', { count: played }))}</span>
+      </div>
       ${side('A')}
       ${side('B')}
     </div>`;
 }
 
 function standingsTable(table) {
-  if (!table.length) return '<p class="faint">Nog geen punten.</p>';
+  if (!table.length) return `<p class="faint">${esc(t('tour.noPoints'))}</p>`;
   const rows = table
     .map(
       (r, i) => `
@@ -426,7 +447,10 @@ function standingsTable(table) {
     )
     .join('');
   return `<div class="scroll-x"><table>
-    <thead><tr><th>#</th><th>Speler</th><th>W</th><th>+/−</th><th>Ptn</th></tr></thead>
+    <thead><tr>
+      <th>${esc(t('table.rank'))}</th><th>${esc(t('table.player'))}</th>
+      <th>${esc(t('table.won'))}</th><th>${esc(t('table.diff'))}</th><th>${esc(t('table.points'))}</th>
+    </tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 
@@ -434,10 +458,10 @@ function standingsTable(table) {
 
 export function historyView(history) {
   return html`
-    ${raw(topbar('Historie', { back: '#/' }))}
+    ${raw(topbar(t('hist.title'), { back: '#/' }))}
     <main class="screen">
       ${history.length === 0
-        ? raw('<div class="empty">Nog niets gespeeld.<br>Zodra je een wedstrijd afrondt staat hij hier.</div>')
+        ? html`<div class="empty">${t('hist.empty')}</div>`
         : html`<div class="list">${history.map(historyRow)}</div>`}
     </main>
   `;
@@ -448,19 +472,21 @@ export function historyRow(item) {
     return html`
       <button class="list-item" data-action="nav" data-href="#/history/${item.id}">
         <span class="grow">
-          <strong>🏆 ${item.name}</strong>
-          <span class="sub">${formatDate(item.finishedAt || item.createdAt)} · ${plural(item.rounds, 'ronde', 'rondes')}</span>
+          <strong>🏆 ${tournamentLabel(item)}</strong>
+          <span class="sub">${formatDate(item.finishedAt || item.createdAt)} · ${t('tour.rounds', { count: item.rounds })}</span>
         </span>
         <span class="score-badge">${item.leader ? item.leader.name : '—'}</span>
       </button>
     `;
   }
-  const winner = item.winner === 'A' ? item.teams.A.name : item.teams.B.name;
+  const status = item.finished
+    ? t('hist.won', { name: teamLabel(item.teams, item.winner) })
+    : t('hist.abandoned');
   return html`
     <button class="list-item" data-action="nav" data-href="#/history/${item.id}">
       <span class="grow">
-        <strong>${item.teams.A.name} vs ${item.teams.B.name}</strong>
-        <span class="sub">${formatDate(item.finishedAt || item.createdAt)}${item.finished ? ` · ${winner} won` : ' · afgebroken'}</span>
+        <strong>${teamLabel(item.teams, 'A')} vs ${teamLabel(item.teams, 'B')}</strong>
+        <span class="sub">${formatDate(item.finishedAt || item.createdAt)} · ${status}</span>
       </span>
       <span class="score-badge">${item.scoreline}</span>
     </button>
@@ -468,36 +494,42 @@ export function historyRow(item) {
 }
 
 export function historyDetailView(item) {
-  const remove = `<button class="icon-btn ghost" data-action="delete-history" data-id="${esc(item.id)}" aria-label="Verwijderen">🗑</button>`;
+  const remove = `<button class="icon-btn ghost" data-action="delete-history" data-id="${esc(item.id)}" aria-label="${esc(t('a11y.delete'))}">🗑</button>`;
+
   if (item.kind === 'tournament') {
     return html`
-      ${raw(topbar(item.name, { back: '#/history', right: remove }))}
+      ${raw(topbar(tournamentLabel(item), { back: '#/history', right: remove }))}
       <main class="screen">
         <div class="chip-row">
-          <span class="chip">${item.type === 'mexicano' ? 'Mexicano' : 'Americano'}</span>
-          <span class="chip">${plural(item.rounds, 'ronde', 'rondes')}</span>
+          <span class="chip">${t(item.type === 'mexicano' ? 'tour.mexicano' : 'tour.americano')}</span>
+          <span class="chip">${t('tour.rounds', { count: item.rounds })}</span>
           <span class="chip">${formatDate(item.finishedAt || item.createdAt)}</span>
         </div>
         <div class="card">
-          <div class="card-title">Eindstand</div>
+          <div class="card-title">${t('hist.finalStandings')}</div>
           ${raw(standingsTable(item.standings || []))}
         </div>
       </main>
     `;
   }
-  const rows = (item.setsDetail || []).map((s, i) => html`<span class="set">Set ${i + 1}: ${s.A}-${s.B}</span>`);
+
+  const sets = (item.setsDetail || []).map((s, i) => html`<span class="set">${t('live.setScore', { n: i + 1, a: s.A, b: s.B })}</span>`);
+  const summary = item.finished
+    ? t('hist.wonWith', { name: teamLabel(item.teams, item.winner), score: item.scoreline })
+    : t('hist.abandonedAt', { score: item.scoreline });
+
   return html`
-    ${raw(topbar('Wedstrijd', { back: '#/history', right: remove }))}
+    ${raw(topbar(t('hist.match'), { back: '#/history', right: remove }))}
     <main class="screen">
       <div class="card">
         <div class="card-title">${formatDate(item.finishedAt || item.createdAt)}</div>
-        <h2>${item.teams.A.name}<span class="muted"> vs </span>${item.teams.B.name}</h2>
-        <div class="setline" style="justify-content:flex-start">${rows}</div>
-        <p class="muted">${item.finished ? `${item.winner === 'A' ? item.teams.A.name : item.teams.B.name} won met ${item.scoreline}` : `Afgebroken bij ${item.scoreline}`}</p>
+        <h2>${teamLabel(item.teams, 'A')}<span class="muted"> vs </span>${teamLabel(item.teams, 'B')}</h2>
+        <div class="setline" style="justify-content:flex-start">${sets}</div>
+        <p class="muted">${summary}</p>
       </div>
       <div class="grid-2">
-        <div class="stat"><b>${item.pointsWon.A}–${item.pointsWon.B}</b><span>punten gewonnen</span></div>
-        <div class="stat"><b>${item.rallies}</b><span>rally's gespeeld</span></div>
+        <div class="stat"><b>${item.pointsWon.A}–${item.pointsWon.B}</b><span>${t('hist.pointsWon')}</span></div>
+        <div class="stat"><b>${item.rallies}</b><span>${t('hist.rallies')}</span></div>
       </div>
     </main>
   `;
@@ -506,22 +538,28 @@ export function historyDetailView(item) {
 // ---------------------------------------------------------------- stats
 
 export function statsView({ rows, totals }) {
+  const withTournaments = rows.filter((r) => r.tournaments > 0);
+  const streaks = rows.filter((r) => r.bestStreak > 1).slice(0, 6);
+
   return html`
-    ${raw(topbar('Statistieken', { back: '#/' }))}
+    ${raw(topbar(t('stats.title'), { back: '#/' }))}
     <main class="screen">
       <div class="grid-2">
-        <div class="stat"><b>${totals.matches}</b><span>wedstrijden</span></div>
-        <div class="stat"><b>${totals.tournaments}</b><span>toernooien</span></div>
+        <div class="stat"><b>${totals.matches}</b><span>${t('stats.matches')}</span></div>
+        <div class="stat"><b>${totals.tournaments}</b><span>${t('stats.tournaments')}</span></div>
       </div>
 
       ${rows.length === 0
-        ? raw('<div class="empty">Nog geen statistieken.<br>Speel een wedstrijd en de ranglijst vult zich vanzelf.</div>')
+        ? html`<div class="empty">${t('stats.empty')}</div>`
         : html`
           <div class="card">
-            <div class="card-title">Ranglijst</div>
+            <div class="card-title">${t('stats.ranking')}</div>
             <div class="scroll-x">
               <table>
-                <thead><tr><th>#</th><th>Speler</th><th>W</th><th>V</th><th>%</th><th>Reeks</th></tr></thead>
+                <thead><tr>
+                  <th>${t('table.rank')}</th><th>${t('table.player')}</th><th>${t('table.won')}</th>
+                  <th>${t('table.lost')}</th><th>${t('table.percent')}</th><th>${t('table.streak')}</th>
+                </tr></thead>
                 <tbody>
                   ${rows.map((r, i) => html`
                     <tr${raw(i === 0 ? ' class="leader"' : '')}>
@@ -530,7 +568,11 @@ export function statsView({ rows, totals }) {
                       <td>${r.wins}</td>
                       <td>${r.losses}</td>
                       <td>${percent(r.winRate)}</td>
-                      <td>${r.streak > 0 ? `${r.streak}×W` : r.streak < 0 ? `${-r.streak}×V` : '—'}</td>
+                      <td>${r.streak > 0
+                        ? t('stats.streakWon', { n: r.streak })
+                        : r.streak < 0
+                          ? t('stats.streakLost', { n: -r.streak })
+                          : '—'}</td>
                     </tr>
                   `)}
                 </tbody>
@@ -539,26 +581,30 @@ export function statsView({ rows, totals }) {
           </div>
 
           <div class="card">
-            <div class="card-title">Toernooien</div>
-            <div class="scroll-x">
-              <table>
-                <thead><tr><th>#</th><th>Speler</th><th>Gesp.</th><th>Top 3</th><th>Wint</th></tr></thead>
-                <tbody>
-                  ${rows.filter((r) => r.tournaments > 0).map((r, i) => html`
-                    <tr><td>${i + 1}</td><td>${r.name}</td><td>${r.tournaments}</td><td>${r.podiums}</td><td>${r.tournamentWins}</td></tr>
-                  `)}
-                </tbody>
-              </table>
-            </div>
-            ${when(rows.every((r) => r.tournaments === 0), '<p class="faint">Nog geen toernooi gespeeld.</p>')}
+            <div class="card-title">${t('stats.tournamentTable')}</div>
+            ${withTournaments.length === 0
+              ? html`<p class="faint">${t('stats.noTournaments')}</p>`
+              : html`
+                <div class="scroll-x">
+                  <table>
+                    <thead><tr>
+                      <th>${t('table.rank')}</th><th>${t('table.player')}</th><th>${t('table.played')}</th>
+                      <th>${t('table.podium')}</th><th>${t('table.wins')}</th>
+                    </tr></thead>
+                    <tbody>
+                      ${withTournaments.map((r, i) => html`
+                        <tr><td>${i + 1}</td><td>${r.name}</td><td>${r.tournaments}</td><td>${r.podiums}</td><td>${r.tournamentWins}</td></tr>
+                      `)}
+                    </tbody>
+                  </table>
+                </div>`}
           </div>
 
           <div class="card">
-            <div class="card-title">Langste winreeks</div>
-            <div class="chip-row">
-              ${rows.filter((r) => r.bestStreak > 1).slice(0, 6).map((r) => html`<span class="chip">${r.name} · ${r.bestStreak}×</span>`)}
-            </div>
-            ${when(rows.every((r) => r.bestStreak <= 1), '<p class="faint">Nog niemand heeft twee wedstrijden op rij gewonnen.</p>')}
+            <div class="card-title">${t('stats.bestStreak')}</div>
+            ${streaks.length === 0
+              ? html`<p class="faint">${t('stats.noStreak')}</p>`
+              : html`<div class="chip-row">${streaks.map((r) => html`<span class="chip">${r.name} · ${r.bestStreak}×</span>`)}</div>`}
           </div>
         `}
     </main>
@@ -569,21 +615,21 @@ export function statsView({ rows, totals }) {
 
 export function playersView(players) {
   return html`
-    ${raw(topbar('Spelers', { back: '#/' }))}
+    ${raw(topbar(t('players.title'), { back: '#/' }))}
     <main class="screen">
       <form data-action="add-player-form" class="btn-row">
-        <input type="text" name="name" placeholder="Naam" autocomplete="off" autocapitalize="words" aria-label="Naam">
-        <button type="submit" class="btn btn-primary" style="flex:0 0 auto;width:auto;padding:0 20px">Toevoegen</button>
+        <input type="text" name="name" placeholder="${esc(t('players.name'))}" autocomplete="off" autocapitalize="words" aria-label="${esc(t('players.name'))}">
+        <button type="submit" class="btn btn-primary" style="flex:0 0 auto;width:auto;padding:0 20px">${t('players.add')}</button>
       </form>
 
       ${players.length === 0
-        ? raw('<div class="empty">Voeg je vaste padelmaatjes toe.<br>Dan hoef je hun naam nooit meer te typen.</div>')
+        ? html`<div class="empty">${t('players.empty')}</div>`
         : html`
           <div class="list">
             ${players.map((p) => html`
               <div class="list-item">
                 <span class="grow"><strong>${p.name}</strong></span>
-                <button class="icon-btn ghost" data-action="remove-player" data-id="${p.id}" aria-label="${p.name} verwijderen">🗑</button>
+                <button class="icon-btn ghost" data-action="remove-player" data-id="${p.id}" aria-label="${esc(t('a11y.removePlayer', { name: p.name }))}">🗑</button>
               </div>
             `)}
           </div>
@@ -595,44 +641,60 @@ export function playersView(players) {
 // ---------------------------------------------------------------- settings
 
 export function settingsView({ settings, storageOk }) {
+  const chosen = settings.language || 'auto';
+  const option = (id, label, sub) => html`
+    <button class="pick" data-action="set-language" data-id="${id}" aria-pressed="${chosen === id}">
+      <span class="tickbox">${raw(chosen === id ? '✓' : '')}</span>
+      <span class="grow">${label}${when(sub, () => html`<span class="faint" style="display:block">${sub}</span>`)}</span>
+    </button>
+  `;
+
   return html`
-    ${raw(topbar('Instellingen', { back: '#/' }))}
+    ${raw(topbar(t('set.title'), { back: '#/' }))}
     <main class="screen">
-      ${when(!storageOk, '<div class="banner hot">Je browser bewaart niets. Zet privémodus uit, anders ben je je historie kwijt.</div>')}
+      ${when(!storageOk, () => html`<div class="banner hot">${t('set.noStorage')}</div>`)}
+
+      <div class="card">
+        <div class="card-title">${t('set.language')}</div>
+        <div class="stack">
+          ${option('auto', t('set.languageAuto'), t('set.languageAutoSub', { name: languageName(detectLanguage()) }))}
+          ${LANGUAGES.map((l) => option(l.id, l.name, ''))}
+        </div>
+      </div>
 
       <div class="card">
         <div class="switch-row">
-          <span class="label">Scherm aan houden
-            <span class="faint" style="display:block;font-weight:400">Tijdens een wedstrijd gaat je telefoon niet in slaap</span>
+          <span class="label">${t('set.keepAwake')}
+            <span class="faint" style="display:block;font-weight:400">${t('set.keepAwakeSub')}</span>
           </span>
           ${raw(toggle('keepAwake', settings.keepAwake))}
         </div>
         <div class="switch-row">
-          <span class="label">Trilling bij een punt
-            <span class="faint" style="display:block;font-weight:400">Werkt niet op elke iPhone</span>
+          <span class="label">${t('set.haptics')}
+            <span class="faint" style="display:block;font-weight:400">${t('set.hapticsSub')}</span>
           </span>
           ${raw(toggle('haptics', settings.haptics))}
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Back-up</div>
-        <p class="faint">Alles staat alleen op dit toestel. Maak af en toe een back-up, of zet hem over naar een andere telefoon.</p>
+        <div class="card-title">${t('set.backup')}</div>
+        <p class="faint">${t('set.backupHint')}</p>
         <div class="btn-row">
-          <button class="btn" data-action="export">Exporteren</button>
-          <button class="btn" data-action="import">Importeren</button>
+          <button class="btn" data-action="export">${t('set.export')}</button>
+          <button class="btn" data-action="import">${t('set.import')}</button>
         </div>
         <input type="file" accept="application/json,.json" data-action="import-file" hidden>
       </div>
 
       <div class="card">
-        <div class="card-title">Opruimen</div>
-        <button class="btn btn-danger" data-action="clear-history">Historie wissen</button>
+        <div class="card-title">${t('set.cleanup')}</div>
+        <button class="btn btn-danger" data-action="clear-history">${t('set.clearHistory')}</button>
       </div>
 
       <p class="faint" style="text-align:center">
-        Padel scorebord · werkt offline<br>
-        Zet hem op je beginscherm via Deel → Zet op beginscherm.
+        ${t('set.footer')}<br>
+        ${t('set.install')}
       </p>
     </main>
   `;

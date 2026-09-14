@@ -1,55 +1,58 @@
-# Padel scorebord
+# Padel scoreboard
 
-Een gratis scorebord-app voor padel. Draait als app op je iPhone, werkt volledig
-offline en bewaart alles op je eigen telefoon — geen account, geen advertenties,
-geen abonnement.
+A free scoreboard app for padel. It installs onto an iPhone home screen, works
+completely offline and keeps everything on your own phone — no account, no
+adverts, no subscription.
 
 <img src="icons/icon-512.png" width="96" alt="">
 
-## Wat het doet
+**Available in English, Russian and Dutch.** The app follows your phone's
+language and can be switched by hand in Settings.
 
-**Wedstrijd bijhouden**
-- Tik op een team om dat punt toe te kennen — één tik, één punt.
-- Punten, games, sets, tiebreak en super tiebreak.
-- Bij 40-40 kies je zelf: voordeel, gouden punt of het **star point** van de
-  FIP-regels voor 2026 (twee keer voordeel, daarna één beslissend punt).
-- De app houdt bij wie serveert, van welke kant, en wanneer je van kant wisselt.
-- Undo voor elk punt, ook dwars door een gewonnen game of set heen.
+## What it does
 
-**Americano en Mexicano**
-- 4 tot 16 spelers op 1 tot 4 banen.
-- Americano: de app zoekt elke ronde de indeling met de minste herhaalde
-  koppels, zodat je zoveel mogelijk met iedereen speelt.
-- Mexicano: na elke ronde bepaalt de stand de koppels — 1 met 4 tegen 2 en 3.
-- Wie moet rusten rouleert eerlijk als het aantal spelers niet op 4 uitkomt.
-- Live stand per speler, want in beide vormen speel je voor jezelf.
+**Match scoring**
+- Tap a team to award the point — one tap, one point.
+- Points, games, sets, tiebreak and super tiebreak.
+- You choose what happens at 40-40: advantage, golden point, or the **star
+  point** from the FIP 2026 rules (two advantages, then one deciding rally).
+- Tracks who serves, from which side, and when to change ends.
+- Undo for every point, including back through a won game or set.
 
-**Historie en statistieken**
-- Elke afgeronde wedstrijd en elk toernooi wordt bewaard.
-- Ranglijst van je vriendengroep: gewonnen, verloren, winstpercentage, langste
-  winreeks, podiumplaatsen.
-- Back-up exporteren en importeren, zodat je niets kwijtraakt bij een nieuwe
-  telefoon.
+**Americano and Mexicano**
+- 4 to 16 players across 1 to 4 courts.
+- Americano: each round the app looks for the arrangement with the fewest
+  repeated partners, so you play with as many people as possible.
+- Mexicano: the standings set the pairs after every round — first with fourth
+  against second and third.
+- When the player count is not a multiple of four, sit-outs rotate fairly.
+- Live per-player standings, because both formats are scored individually.
 
-## Op je iPhone zetten
+**History and statistics**
+- Every finished match and tournament is kept.
+- Group ranking: wins, losses, win rate, longest winning streak, podium
+  finishes.
+- Export and import a backup so nothing is lost when you change phone.
 
-1. Zet de map online (zie hieronder) en open de URL in **Safari**.
-2. Tik op de deelknop en kies **Zet op beginscherm**.
-3. Open hem voortaan vanaf je beginscherm: hij start fullscreen, zonder
-   browserbalk, en werkt zonder internet.
+## Putting it on an iPhone
 
-Let op: gebruik Safari om hem te installeren — vanuit Chrome op iOS werkt "Zet
-op beginscherm" niet hetzelfde.
+1. Host the folder (see below) and open the URL in **Safari**.
+2. Tap the share button and choose **Add to Home Screen**.
+3. Open it from the home screen from then on: it starts full screen, without a
+   browser bar, and works with no connection.
 
-## Online zetten
+Use Safari to install it — "Add to Home Screen" from Chrome on iOS does not
+behave the same way.
 
-De app is platte HTML, CSS en JavaScript zonder bouwstap. Elke statische
-hosting werkt.
+## Hosting it
 
-**GitHub Pages** — zet Pages in de repo-instellingen aan voor deze branch; de
-app staat dan op `https://<gebruiker>.github.io/<repo>/padel/`.
+The app is plain HTML, CSS and JavaScript with no build step, so any static
+host works.
 
-**Lokaal proberen**
+**GitHub Pages** — enable Pages for this branch in the repository settings; the
+app is then at `https://<user>.github.io/<repo>/padel/`.
+
+**Locally**
 
 ```sh
 cd padel
@@ -57,8 +60,8 @@ npx http-server -p 8123 -c-1 .
 # open http://localhost:8123
 ```
 
-Open `index.html` niet rechtstreeks vanaf schijf: ES-modules en de service
-worker vragen om `http://`.
+Don't open `index.html` straight off disk: ES modules and the service worker
+need `http://`.
 
 ## Tests
 
@@ -67,35 +70,44 @@ cd padel
 node --test 'test/*.test.mjs'
 ```
 
-De scoreregels, de toernooi-indeling, de statistieken en de HTML-escaping
-hebben allemaal hun eigen tests.
+The scoring rules, tournament scheduling, statistics, HTML escaping and the
+translations each have their own tests. The translation tests check that every
+language carries the same keys, that nothing is left blank, that plural keys
+cover every form the language grammatically needs — Russian needs
+one/few/many where English needs one/other — and that placeholders survive
+translation.
 
-## Hoe het in elkaar zit
+## How it fits together
 
 ```
 padel/
-  index.html              de shell
-  manifest.webmanifest    maakt er een installeerbare app van
-  sw.js                   cachet alles voor offline gebruik
+  index.html              the shell
+  manifest.webmanifest    makes it an installable app
+  sw.js                   caches everything for offline use
   css/app.css
   js/
-    engine.js             scoreregels (punten, games, sets, tiebreak, serveerbeurt)
-    tournament.js         Americano- en Mexicano-indeling en stand
-    stats.js              ranglijst uit de historie
-    store.js              opslag op het toestel
-    views.js              alle schermen
-    dom.js                veilige HTML-templates
-    app.js                routing, state en acties
+    engine.js             scoring rules (points, games, sets, tiebreak, serve)
+    tournament.js         Americano and Mexicano pairing and standings
+    stats.js              ranking built from the history
+    store.js              on-device storage
+    i18n.js               translations, plurals and date formats
+    views.js              every screen
+    dom.js                safe HTML templates
+    app.js                routing, state and actions
   test/                   node:test
 ```
 
-Een wedstrijd wordt opgeslagen als de lijst van gewonnen rally's, niets meer.
-Alles wat je op het scherm ziet — de stand, wie serveert, of het een star point
-is — wordt daaruit opnieuw berekend. Daardoor kan de weergave nooit uit de pas
-lopen met de stand, en is undo simpelweg het laatste punt weglaten.
+A match is stored as nothing but the list of rally winners. Everything on
+screen — the score, who serves, whether this is a star point — is recomputed
+from that list. So the display can never drift out of step with the score, and
+undo is simply dropping the last point.
+
+No display text lives in the views: they call `t('some.key')`, and `i18n.js`
+holds the three dictionaries. Adding a language means adding one dictionary;
+the test suite then tells you exactly which keys are still missing.
 
 ## Privacy
 
-Er gaat niets naar een server. Alles staat in de lokale opslag van je browser.
-Wis je je browsergegevens, dan ben je je historie kwijt — maak dus af en toe een
-back-up via Instellingen.
+Nothing is sent to a server. Everything sits in your browser's local storage.
+Clear your browsing data and the history goes with it, so make a backup now and
+then from Settings.

@@ -186,8 +186,8 @@ test('serve rotates A1 -> B1 -> A2 -> B2 and sides alternate', () => {
     slots.map((s) => `${s.team}${s.player}`),
     ['A0', 'B0', 'A1', 'B1', 'A0']
   );
-  assert.equal(computeState(match()).serve.side, 'rechts');
-  assert.equal(computeState(play(match(), 'A')).serve.side, 'links');
+  assert.equal(computeState(match()).serve.side, 'right');
+  assert.equal(computeState(play(match(), 'A')).serve.side, 'left');
 });
 
 test('tiebreak serve: one rally, then two each', () => {

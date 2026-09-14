@@ -7,8 +7,8 @@
  * leaves a dangling listener behind.
  */
 
-import { html, raw } from './dom.js';
 import * as store from './store.js';
+import { t, setLanguage, detectLanguage } from './i18n.js';
 import {
   createMatch,
   computeState,
@@ -282,8 +282,8 @@ const actions = {
 
     setLive(
       createMatch({
-        teamA: { players: draft.teamA, name: draft.teamA.filter(Boolean).join(' & ') || 'Team 1' },
-        teamB: { players: draft.teamB, name: draft.teamB.filter(Boolean).join(' & ') || 'Team 2' },
+        teamA: { players: draft.teamA },
+        teamB: { players: draft.teamB },
         config: draft.config
       })
     );
@@ -313,15 +313,15 @@ const actions = {
     store.archive(summariseMatch(state.live));
     const id = state.live.id;
     endLive();
-    toast('Wedstrijd opgeslagen');
+    toast(t('toast.matchSaved'));
     go(`#/history/${id}`);
   },
 
   'abandon-match'() {
-    if (!confirm('Wedstrijd stoppen?')) return;
+    if (!confirm(t('confirm.stopMatch'))) return;
     if (state.live.points.length > 0) {
       store.archive(summariseMatch(state.live));
-      toast('Opgeslagen als afgebroken wedstrijd');
+      toast(t('toast.abandonedSaved'));
     }
     endLive();
     go('#/');
@@ -341,6 +341,13 @@ const actions = {
       }
     }
     input.value = '';
+    render();
+  },
+
+  'set-language'(el) {
+    const id = el.dataset.id;
+    store.saveSettings({ language: id });
+    applyLanguage();
     render();
   },
 
@@ -396,22 +403,22 @@ const actions = {
     const round = currentRound(state.live);
     if (!round || !roundComplete(round, state.live.format)) return;
     setLive(addRound(state.live));
-    toast(`Ronde ${state.live.rounds.length}`);
+    toast(t('tour.round', { n: state.live.rounds.length }));
     render();
   },
 
   'finish-tournament'() {
-    if (!confirm('Toernooi afronden en opslaan?')) return;
+    if (!confirm(t('confirm.finishTournament'))) return;
     const finished = { ...state.live, finishedAt: Date.now() };
     store.archive(summariseTournament(finished));
     const id = finished.id;
     endLive();
-    toast('Toernooi opgeslagen');
+    toast(t('toast.tournamentSaved'));
     go(`#/history/${id}`);
   },
 
   'abandon-tournament'() {
-    if (!confirm('Toernooi stoppen zonder op te slaan?')) return;
+    if (!confirm(t('confirm.stopTournament'))) return;
     endLive();
     go('#/');
   },
@@ -419,15 +426,15 @@ const actions = {
   // --- history and settings ---
 
   'delete-history'(el) {
-    if (!confirm('Verwijderen uit je historie?')) return;
+    if (!confirm(t('confirm.deleteHistory'))) return;
     store.removeFromHistory(el.dataset.id);
     go('#/history');
   },
 
   'clear-history'() {
-    if (!confirm('Alle historie en statistieken wissen? Dit kan niet ongedaan worden gemaakt.')) return;
+    if (!confirm(t('confirm.clearHistory'))) return;
     store.clearHistory();
-    toast('Historie gewist');
+    toast(t('toast.historyCleared'));
     render();
   },
 
@@ -436,7 +443,7 @@ const actions = {
     const file = new File([data], 'padel-backup.json', { type: 'application/json' });
     try {
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Padel back-up' });
+        await navigator.share({ files: [file], title: t('set.backup') });
         return;
       }
     } catch {
@@ -459,9 +466,9 @@ const actions = {
     if (!file) return;
     try {
       store.importAll(JSON.parse(await file.text()));
-      toast('Back-up teruggezet');
-    } catch (error) {
-      toast(error.message || 'Kon dit bestand niet lezen');
+      toast(t('toast.backupRestored'));
+    } catch {
+      toast(t('toast.importFailed'));
     }
     el.value = '';
     render();
@@ -509,6 +516,13 @@ window.addEventListener('hashchange', render);
 
 // ---------------------------------------------------------------- boot
 
+/** 'auto' follows the phone; anything else is the user's explicit choice. */
+function applyLanguage() {
+  const chosen = store.getSettings().language;
+  setLanguage(!chosen || chosen === 'auto' ? detectLanguage() : chosen);
+}
+
+applyLanguage();
 state.live = store.getLive();
 render();
 

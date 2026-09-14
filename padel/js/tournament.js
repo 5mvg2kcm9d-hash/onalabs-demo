@@ -22,7 +22,7 @@ export function createTournament({ name, type = 'americano', players = [], court
     id: newId(),
     kind: 'tournament',
     type,
-    name: (name || '').trim() || (type === 'mexicano' ? 'Mexicano' : 'Americano'),
+    name: (name || '').trim(),
     createdAt: Date.now(),
     finishedAt: null,
     courts: Math.max(1, courts),
@@ -135,7 +135,7 @@ function pickSitOuts(tournament, count, sitOuts, rng) {
  */
 export function generateRound(tournament, { rng = Math.random, attempts = 400 } = {}) {
   const playerCount = tournament.players.length;
-  if (playerCount < 4) throw new Error('Een Americano heeft minstens 4 spelers nodig.');
+  if (playerCount < 4) throw new Error('tour.minPlayers');
 
   const courts = Math.min(tournament.courts, maxCourts(playerCount));
   const slots = courts * 4;

@@ -6,8 +6,8 @@ adverts, no subscription.
 
 <img src="icons/icon-512.png" width="96" alt="">
 
-**Available in English, Russian and Dutch.** The app follows your phone's
-language and can be switched by hand in Settings.
+**Available in Russian, English and Dutch.** It opens in Russian. Pick another
+language in Settings — including "Automatic", which follows your phone.
 
 ## What it does
 
@@ -105,6 +105,12 @@ undo is simply dropping the last point.
 No display text lives in the views: they call `t('some.key')`, and `i18n.js`
 holds the three dictionaries. Adding a language means adding one dictionary;
 the test suite then tells you exactly which keys are still missing.
+
+Two separate constants decide language, and they are not the same thing:
+`DEFAULT_LANGUAGE` in `i18n.js` is what the app opens in before anyone
+chooses (Russian), while `FALLBACK` is the dictionary consulted for a key a
+language happens to be missing (English). Change the first to open in a
+different language.
 
 ## Privacy
 

@@ -13,7 +13,11 @@ export const LANGUAGES = [
   { id: 'nl', name: 'Nederlands' }
 ];
 
+/** Filled in for any key a language is missing. */
 export const FALLBACK = 'en';
+
+/** What the app opens in before anyone picks a language. */
+export const DEFAULT_LANGUAGE = 'ru';
 
 const LOCALES = { en: 'en-GB', ru: 'ru-RU', nl: 'nl-NL' };
 

@@ -5,6 +5,7 @@
  */
 
 import { newId } from './engine.js';
+import { DEFAULT_LANGUAGE } from './i18n.js';
 
 const PREFIX = 'padel.v1.';
 const KEYS = {
@@ -15,7 +16,8 @@ const KEYS = {
 };
 
 export const DEFAULT_SETTINGS = {
-  language: 'auto',
+  // 'auto' follows the phone; this is what you get before choosing.
+  language: DEFAULT_LANGUAGE,
   keepAwake: true,
   haptics: true,
   lastMatchConfig: null,

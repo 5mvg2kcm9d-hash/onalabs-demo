@@ -10,8 +10,10 @@ import {
   keysOf,
   entryOf,
   LANGUAGES,
-  FALLBACK
+  FALLBACK,
+  DEFAULT_LANGUAGE
 } from '../js/i18n.js';
+import { DEFAULT_SETTINGS } from '../js/store.js';
 
 const OTHERS = LANGUAGES.map((l) => l.id).filter((id) => id !== FALLBACK);
 
@@ -19,6 +21,19 @@ test('English and Russian are both offered', () => {
   const ids = LANGUAGES.map((l) => l.id);
   assert.ok(ids.includes('en'), ids.join(','));
   assert.ok(ids.includes('ru'), ids.join(','));
+});
+
+test('the app opens in Russian before anyone picks a language', () => {
+  assert.equal(DEFAULT_LANGUAGE, 'ru');
+  assert.equal(DEFAULT_SETTINGS.language, 'ru', 'a fresh install starts Russian');
+  setLanguage(DEFAULT_SETTINGS.language);
+  assert.equal(t('home.newMatch'), 'Новый матч');
+});
+
+test('a missing key still falls back to English rather than to the default', () => {
+  assert.equal(FALLBACK, 'en');
+  setLanguage('ru');
+  assert.equal(t('nope.not.here'), 'nope.not.here');
 });
 
 test('every language has exactly the same keys as English', () => {

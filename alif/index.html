@@ -170,7 +170,9 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 /* meta strip */
 .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-soft);
   border-radius:16px;overflow:hidden;margin:14px}
-.strip div{background:var(--surface);padding:12px 10px;text-align:center}
+.strip div,.strip button{background:var(--surface);padding:12px 10px;text-align:center;width:100%}
+.strip.tools button{display:flex;flex-direction:column;align-items:center;gap:5px}
+.strip.tools button:active{background:var(--surface-2)}
 .strip b{display:block;font-size:15px;font-weight:600;margin-top:3px}
 .strip span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
 
@@ -386,6 +388,65 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 .mtable td:first-child,.mtable th:first-child{text-align:left;padding-left:14px}
 .mtable tr.today td{background:var(--brass-wash);font-weight:700}
 .tblwrap{overflow-x:auto;margin:0 0 10px}
+
+/* ===================================================== names & calendar = */
+.name-row{display:flex;align-items:center;gap:13px;padding:12px 15px;border-top:1px solid var(--line-soft);width:100%;text-align:left}
+.name-row:first-child{border-top:0}
+.name-row .no{width:30px;height:30px;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;
+  color:var(--brass);border:1px solid var(--brass);border-radius:50%;opacity:.75}
+.name-row .info{flex:1;min-width:0}
+.name-row .info b{display:block;font-size:14px;font-weight:600}
+.name-row .info span{display:block;font-size:11.5px;color:var(--muted)}
+.name-row .ar{font-family:"Amiri","Amiri Quran",serif;font-size:24px;color:var(--text);white-space:nowrap}
+.name-hero{margin:14px;padding:22px 18px;border-radius:20px;text-align:center;border:1px solid var(--brass);
+  background:linear-gradient(160deg,var(--brass-wash),var(--surface) 75%)}
+.name-hero .ar{font-family:"Amiri","Amiri Quran",serif;font-size:46px;line-height:1.5;color:var(--text)}
+.name-hero .tl{font-size:15px;font-weight:600;margin-top:2px}
+.name-hero .mn{font-size:13px;color:var(--brass);font-weight:600;margin-top:2px}
+.hcal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:6px 14px 14px}
+.hcal .dow{font-size:9.5px;text-align:center;color:var(--muted);font-weight:700;letter-spacing:.06em;padding-bottom:4px}
+.hcal .cell{aspect-ratio:.92;border-radius:10px;background:var(--surface-2);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1px;position:relative;border:1px solid transparent}
+.hcal .cell.blank{background:none}
+.hcal .cell b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.hcal .cell span{font-size:9px;color:var(--muted)}
+.hcal .cell.friday{background:var(--jade-wash)}
+.hcal .cell.today{border-color:var(--brass);background:var(--brass-wash)}
+.hcal .cell.event::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--clay)}
+.evrow{display:flex;align-items:center;gap:12px;padding:11px 15px;border-top:1px solid var(--line-soft)}
+.evrow:first-child{border-top:0}
+.evrow .t{flex:1;min-width:0}
+.evrow .t b{display:block;font-size:14px;font-weight:600}
+.evrow .t span{display:block;font-size:11.5px;color:var(--muted)}
+.evrow .cd{font-size:12px;font-weight:700;color:var(--brass);text-align:right;white-space:nowrap}
+.evrow.is-today{background:var(--brass-wash)}
+
+/* ============================================================ onboarding */
+.onboard{position:absolute;inset:0;z-index:95;background:var(--ground);display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 26px) 22px calc(env(safe-area-inset-bottom) + 20px)}
+.onboard .mark{font-family:"Amiri","Amiri Quran",serif;font-size:56px;color:var(--brass);text-align:center;line-height:1}
+.onboard h2{font-family:"Marcellus",Georgia,serif;font-size:26px;font-weight:400;text-align:center;margin-top:14px}
+.onboard p{text-align:center;color:var(--muted);font-size:13.5px;margin-top:8px;max-width:34ch;margin-inline:auto;line-height:1.6}
+.onboard .steps{display:flex;gap:5px;justify-content:center;margin-top:16px}
+.onboard .steps i{width:22px;height:3px;border-radius:2px;background:var(--line);display:block}
+.onboard .steps i.on{background:var(--brass)}
+.onboard .ob-body{flex:1;overflow-y:auto;margin-top:18px}
+.onboard .ob-foot{display:flex;gap:10px;padding-top:12px}
+.onboard .ob-foot .btn{margin:0;width:auto;flex:1}
+.ob-choice{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border-radius:14px;
+  border:1px solid var(--line);background:var(--surface);margin-bottom:8px}
+.ob-choice.is-on{border-color:var(--brass);background:var(--brass-wash)}
+.ob-choice .t{flex:1}
+.ob-choice .t b{display:block;font-size:14px;font-weight:600}
+.ob-choice .t span{display:block;font-size:11.5px;color:var(--muted)}
+
+/* Ramadan card */
+.ramadan{margin:14px;padding:16px 18px;border-radius:20px;border:1px solid var(--brass);
+  background:linear-gradient(150deg,var(--brass-wash),var(--surface) 75%);display:flex;align-items:center;gap:16px}
+.ramadan .lbl{flex:1}
+.ramadan .lbl b{display:block;font-size:14px}
+.ramadan .lbl span{font-size:11.5px;color:var(--muted)}
+.ramadan .cd{font-family:"Marcellus",serif;font-size:26px;color:var(--brass);font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -423,6 +484,8 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
       <div class="card" id="times-card"></div>
 
       <div class="strip" id="sun-strip"></div>
+
+      <div class="strip tools" id="tools-strip"></div>
 
       <div class="ayah-card" id="ayah-card"></div>
 
@@ -530,6 +593,19 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
     </div>
   </div>
 
+  <div class="reader" id="page">
+    <div class="reader-top">
+      <button class="iconbtn" id="page-back" aria-label="Back">
+        <svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>
+      </button>
+      <div class="ttl"><b id="page-title">—</b><span id="page-sub">—</span></div>
+      <button class="iconbtn" id="page-action" aria-label="Action" hidden>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      </button>
+    </div>
+    <div class="reader-body" id="page-body"></div>
+  </div>
+
   <nav class="tabbar" id="tabbar" role="tablist">
     <button class="tab is-active" data-tab="today" role="tab" aria-selected="true">
       <svg viewBox="0 0 24 24"><path d="M3 14h18M5.5 14a6.5 6.5 0 0 1 13 0"/><path d="M12 3.5v2M4.4 6.9l1.4 1.4M19.6 6.9l-1.4 1.4M2.5 18.5h19"/></svg><span>Today</span>
@@ -561,8 +637,10 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 
 <script src="data/surahs.js"></script>
 <script src="data/cities.js"></script>
+<script src="data/names99.js"></script>
 <script src="js/times.js"></script>
 <script src="js/app.js"></script>
 <script src="js/quran.js"></script>
+<script src="js/extras.js"></script>
 </body>
 </html>

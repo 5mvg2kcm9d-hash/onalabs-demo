@@ -84,7 +84,7 @@
     notif: { on: false, before: 0, sound: 'chime', per: { fajr: true, sunrise: false, dhuhr: true, asr: true, maghrib: true, isha: true } },
     quran: { translation: 'en', translit: false, arSize: 26, txSize: 14, lastRead: null, bookmarks: [] },
     log: {}, tasbih: { idx: 0, count: 0, total: 0 },
-    seen: false
+    autoLoc: true, seen: false
   };
   function load() {
     try {
@@ -202,11 +202,49 @@
     $('#date-line').textContent = h.d + ' ' + h.monthName + ' ' + h.y + ' AH · ' +
       DOW[dowIndex(p.y, p.m, p.d)].slice(0, 3) + ' ' + p.d + ' ' + GREG_MONTHS[p.m - 1].slice(0, 3);
 
+    renderRamadan();
     renderTimesCard();
     renderStrip();
+    renderTools();
     renderAyah();
     renderEvent();
     tick();
+  }
+
+  // During Ramadan the day is framed by suhoor and iftar rather than by the
+  // next prayer, so it gets its own card above the timetable.
+  function renderRamadan() {
+    var existing = document.getElementById('ramadan-card');
+    var p = todayParts();
+    var h = T.toHijri(p.y, p.m, p.d, S.hijriOffset);
+    if (h.m !== 9) { if (existing) existing.remove(); return; }
+    var card = existing || el('div', 'ramadan');
+    card.id = 'ramadan-card';
+    card.innerHTML = '';
+    var lbl = el('div', 'lbl');
+    lbl.appendChild(el('b', null, 'Ramadan ' + h.y + ' · day ' + h.d));
+    lbl.appendChild(el('span', null, 'Suhoor ends ' + fmtTime(day.at.imsak) + ' · Iftar ' + fmtTime(day.at.maghrib)));
+    card.appendChild(lbl);
+    card.appendChild(el('div', 'cd num', '--:--'));
+    if (!existing) $('#times-card').parentNode.insertBefore(card, $('#times-card'));
+    updateRamadan();
+  }
+  function updateRamadan() {
+    var card = document.getElementById('ramadan-card');
+    if (!card || !day) return;
+    var now = Date.now();
+    var cd = card.querySelector('.cd');
+    var lbl = card.querySelector('.lbl b');
+    if (now < day.at.imsak) {
+      cd.textContent = fmtDur(day.at.imsak - now);
+      lbl.textContent = 'Suhoor ends in';
+    } else if (now < day.at.maghrib) {
+      cd.textContent = fmtDur(day.at.maghrib - now);
+      lbl.textContent = 'Iftar in';
+    } else {
+      cd.textContent = fmtDur(tomorrow.at.imsak - now);
+      lbl.textContent = 'Suhoor ends in';
+    }
   }
 
   function renderTimesCard() {
@@ -301,6 +339,29 @@
     });
   }
 
+  function renderTools() {
+    var strip = $('#tools-strip');
+    if (!strip) return;
+    strip.innerHTML = '';
+    [['Calendar', '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>',
+      function () { if (window.AlifExtras) window.AlifExtras.openCalendar(); }],
+     ['99 Names', '<svg viewBox="0 0 24 24"><path d="M12 3.5 14.3 9l5.7.4-4.4 3.7 1.4 5.6L12 15.6 7 18.7l1.4-5.6L4 9.4 9.7 9Z"/></svg>',
+      function () { if (window.AlifExtras) window.AlifExtras.openNames(); }],
+     ['Tasbih', '<svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.2"/><circle cx="17.5" cy="9.5" r="2.2"/><circle cx="17.5" cy="15" r="2.2"/><circle cx="12" cy="18.5" r="2.2"/><circle cx="6.5" cy="15" r="2.2"/><circle cx="6.5" cy="9.5" r="2.2"/></svg>',
+      function () { openTasbih(); }]
+    ].forEach(function (t) {
+      var b = el('button');
+      b.innerHTML = '<span style="display:grid;place-items:center;color:var(--brass)">' +
+        t[1].replace('<svg', '<svg style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linejoin:round"') +
+        '</span>';
+      var lab = el('b', null, t[0]);
+      lab.style.fontSize = '12.5px';
+      b.appendChild(lab);
+      b.addEventListener('click', t[2]);
+      strip.appendChild(b);
+    });
+  }
+
   function renderAyah() {
     var p = todayParts();
     var seed = (p.y * 372 + p.m * 31 + p.d) % VERSES.length;
@@ -318,6 +379,15 @@
     c.appendChild(ref);
   }
 
+  // Inverse of toHijri: the tabular conversion, moved back by the user's
+  // sighting offset so events line up with the dates Alif displays.
+  function gregorianOfHijri(hy, hm, hd) {
+    var g = T.fromHijri(hy, hm, hd);
+    var t = new Date(Date.UTC(g.y, g.m - 1, g.d));
+    t.setUTCDate(t.getUTCDate() - (S.hijriOffset || 0));
+    return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
+  }
+
   function renderEvent() {
     var card = $('#event-card');
     var p = todayParts();
@@ -325,7 +395,7 @@
     var best = null;
     T.HIJRI_EVENTS.forEach(function (ev) {
       [h.y, h.y + 1].forEach(function (yy) {
-        var g = T.fromHijri(yy, ev.m, ev.d);
+        var g = gregorianOfHijri(yy, ev.m, ev.d);
         var days = Math.round((Date.UTC(g.y, g.m - 1, g.d) - Date.UTC(p.y, p.m - 1, p.d)) / 86400000);
         if (days >= 0 && days <= 400 && (!best || days < best.days)) best = { ev: ev, days: days, g: g };
       });
@@ -399,6 +469,7 @@
     bg.style.setProperty('--sky-a', ph[0]);
     bg.style.setProperty('--sky-b', ph[1]);
     renderArc(ni.prev, ni.next, now);
+    updateRamadan();
     var cur = $('.prow.is-now');
     if (!cur || cur.querySelector('.nm b').textContent.indexOf(ni.prev.n) !== 0) renderTimesCard();
   }
@@ -594,7 +665,11 @@
       prevKey = k;
     });
 
-    return { counts: counts, total: total, jamaah: jamaah, ontime: ontime,
+    var missed = 0;
+    Object.keys(S.log).forEach(function (k) {
+      TRACKED.forEach(function (pr) { if (S.log[k][pr.k] === 'missed') missed++; });
+    });
+    return { counts: counts, total: total, jamaah: jamaah, ontime: ontime, missed: missed,
              streak: streak, best: Math.max(best, streak), days: daysTracked };
   }
 
@@ -701,7 +776,9 @@
 
     var sg = $('#stat-grid');
     sg.innerHTML = '';
-    [[st.total, 'Prayers logged'], [st.jamaah, 'In congregation'],
+    var onTimeRate = st.total ? Math.round(st.ontime / st.total * 100) + '%' : '—';
+    [[st.total, 'Prayers logged'], [onTimeRate, 'On time or jama‘ah'],
+     [st.jamaah, 'In congregation'], [st.missed, 'Missed to make up'],
      [st.best, 'Longest streak'], [st.days, 'Days tracked']].forEach(function (r) {
       var d = el('div');
       d.appendChild(el('b', 'num', String(r[0])));
@@ -868,7 +945,7 @@
   }
 
   /* ------------------------------------------------------------ location */
-  function openLocationSheet() {
+  function openLocationSheet(after) {
     var body = el('div');
     var gps = el('button', 'opt');
     gps.innerHTML = '<div class="glyph" style="width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2)">' +
@@ -923,6 +1000,7 @@
           S.loc = { name: c[0], country: c[1], lat: c[2], lng: c[3], tz: c[4], source: 'manual' };
           save(); closeSheet(); rebuild(); renderMore();
           toast('Location set to ' + c[0]);
+          if (typeof after === 'function') after();
         });
         results.appendChild(b);
       });
@@ -942,7 +1020,7 @@
     }
     return { city: best, km: Math.sqrt(bd) };
   }
-  function useGPS() {
+  function useGPS(after) {
     if (!navigator.geolocation) { toast('Location services unavailable'); return; }
     toast('Locating…');
     navigator.geolocation.getCurrentPosition(function (pos) {
@@ -958,6 +1036,7 @@
       };
       save(); closeSheet(); rebuild(); renderMore();
       toast('Location updated · ' + S.loc.name);
+      if (typeof after === 'function') after();
     }, function (err) {
       toast(err.code === 1 ? 'Location permission denied' : 'Could not read your location');
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
@@ -1001,6 +1080,40 @@
     });
     body.appendChild(ok);
     sheet('Coordinates', body);
+  }
+
+  // "Updated automatically as you travel": with permission already granted,
+  // re-read the position when the app comes back to the foreground and move
+  // the timetable if the device has travelled a meaningful distance.
+  var lastAutoCheck = 0;
+  function maybeRefreshLocation() {
+    if (!S.autoLoc || S.loc.source !== 'gps' || !navigator.geolocation) return;
+    if (Date.now() - lastAutoCheck < 10 * 60000) return;
+    lastAutoCheck = Date.now();
+    function read() {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        var dLat = (lat - S.loc.lat) * 111;
+        var dLng = (lng - S.loc.lng) * 111 * Math.cos(lat * Math.PI / 180);
+        var moved = Math.sqrt(dLat * dLat + dLng * dLng);
+        if (moved < 25) return;
+        var near = nearestCity(lat, lng);
+        S.loc = {
+          name: near.km < 40 && near.city ? near.city[0] : 'My location',
+          country: near.city ? near.city[1] : '',
+          lat: Math.round(lat * 10000) / 10000, lng: Math.round(lng * 10000) / 10000,
+          tz: (near.km < 150 && near.city) ? near.city[4] : Intl.DateTimeFormat().resolvedOptions().timeZone,
+          source: 'gps'
+        };
+        save(); rebuild(); renderMore();
+        toast('You have travelled — times now for ' + S.loc.name);
+      }, function () {}, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+    }
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then(function (st) {
+        if (st.state === 'granted') read();
+      }).catch(function () {});
+    } else read();
   }
 
   /* ------------------------------------------------------------ settings */
@@ -1055,7 +1168,11 @@
     group('Location', [
       row('Place', S.loc.name, openLocationSheet, { sub: S.loc.country || (S.loc.lat.toFixed(2) + ', ' + S.loc.lng.toFixed(2)) }),
       row('Time zone', S.loc.tz || 'device', null, { sub: 'Follows the selected city' }),
-      row('Use my location', null, useGPS, { sub: 'One-time GPS reading' })
+      row('Use my location', null, function () { useGPS(); }, { sub: 'One-time GPS reading' }),
+      row('Follow me as I travel', null, function () {
+        S.autoLoc = !S.autoLoc; save(); renderMore();
+        if (S.autoLoc) { lastAutoCheck = 0; maybeRefreshLocation(); }
+      }, { toggle: !!S.autoLoc, sub: 'Re-check the position when Alif reopens' })
     ]);
 
     var methodNames = Object.keys(T.METHODS).map(function (k) {
@@ -1156,6 +1273,12 @@
     ]);
 
     group('Tools', [
+      row('Islamic calendar', hijriToday(), function () {
+        if (window.AlifExtras) window.AlifExtras.openCalendar();
+      }, { sub: 'Hijri month view and upcoming dates' }),
+      row('99 Names of Allah', 'Al-Asma’ ul-Husna', function () {
+        if (window.AlifExtras) window.AlifExtras.openNames();
+      }, { sub: 'Meanings, verses, and count them on the tasbih' }),
       row('Tasbih counter', String(S.tasbih.total) + ' total', openTasbih, { sub: 'Digital dhikr beads with haptics' }),
       row('Monthly timetable', null, openMonthTable, { sub: 'Every prayer time for the month' }),
       row('Prayer log calendar', null, openMonthLog, { sub: 'Edit any past day' })
@@ -1332,25 +1455,27 @@
   }
 
   /* -------------------------------------------------------------- tasbih */
-  function openTasbih() {
+  function openTasbih(custom) {
     var t = S.tasbih;
     var body = el('div', 'tasbih');
-    var d = DHIKR[t.idx % DHIKR.length];
+    var d = custom || DHIKR[t.idx % DHIKR.length];
+    var transient = custom ? { count: 0 } : null;
     var ar = el('div', 'dhikr-ar', d.ar);
     var tr = el('div', 'dhikr-tr', d.tr + ' · ' + d.en);
     body.appendChild(ar); body.appendChild(tr);
     var btn = el('button', 'beadbtn');
-    var n = el('div', 'n num', String(t.count));
+    var n = el('div', 'n num', String(transient ? transient.count : t.count));
     var of = el('div', 'of num', 'of ' + d.target);
     var inner = el('div');
     inner.style.textAlign = 'center';
     inner.appendChild(n); inner.appendChild(of);
     btn.appendChild(inner);
     btn.addEventListener('click', function () {
-      t.count++; t.total++;
-      n.textContent = String(t.count);
-      buzz(t.count % d.target === 0 ? [40, 60, 40] : 12);
-      if (t.count % d.target === 0) { playAthan(); toast(d.tr + ' × ' + d.target + ' complete'); }
+      var c = transient ? ++transient.count : ++t.count;
+      t.total++;
+      n.textContent = String(c);
+      buzz(c % d.target === 0 ? [40, 60, 40] : 12);
+      if (c % d.target === 0) { playAthan(); toast(d.tr + ' × ' + d.target + ' complete'); }
       save();
     });
     body.appendChild(btn);
@@ -1358,22 +1483,29 @@
     ctr.style.cssText = 'display:flex;gap:10px;padding:14px 0 4px;width:100%';
     var reset = el('button', 'btn ghost', 'Reset');
     reset.style.margin = '0';
-    reset.addEventListener('click', function () { t.count = 0; n.textContent = '0'; save(); });
-    var next = el('button', 'btn ghost', 'Next dhikr');
-    next.style.margin = '0';
-    next.addEventListener('click', function () {
-      t.idx = (t.idx + 1) % DHIKR.length; t.count = 0; save(); closeSheet(); openTasbih();
+    reset.addEventListener('click', function () {
+      if (transient) transient.count = 0; else t.count = 0;
+      n.textContent = '0'; save();
     });
-    ctr.appendChild(reset); ctr.appendChild(next);
+    ctr.appendChild(reset);
+    if (!transient) {
+      var next = el('button', 'btn ghost', 'Next dhikr');
+      next.style.margin = '0';
+      next.addEventListener('click', function () {
+        t.idx = (t.idx + 1) % DHIKR.length; t.count = 0; save(); closeSheet(); openTasbih();
+      });
+      ctr.appendChild(next);
+    }
     body.appendChild(ctr);
     body.appendChild(el('div', 'note', 'Total counted in Alif: ' + t.total + '. The count is kept on this device.'));
-    sheet('Tasbih', body);
+    sheet(custom ? custom.tr : 'Tasbih', body);
   }
 
   /* --------------------------------------------------------------- shell */
   function showScreen(name) {
     $$('.screen').forEach(function (s) { s.classList.toggle('is-active', s.dataset.screen === name); });
     if (name !== 'quran') { var r = $('#reader'); if (r) r.classList.remove('is-open'); }
+    var pg = $('#page'); if (pg) pg.classList.remove('is-open');
     $$('.tab').forEach(function (t) {
       var on = t.dataset.tab === name;
       t.classList.toggle('is-active', on);
@@ -1438,14 +1570,20 @@
     tickTimer = setInterval(tick, 1000);
 
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) { rebuild(); }
+      if (!document.hidden) { rebuild(); maybeRefreshLocation(); }
     });
     window.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
   }
 
   window.Alif = {
     el: el, $: $, $$: $$, sheet: sheet, closeSheet: closeSheet, toast: toast,
-    showScreen: showScreen, state: S, save: save, buzz: buzz
+    showScreen: showScreen, state: S, save: save, buzz: buzz,
+    PRAYERS: PRAYERS, TRACKED: TRACKED, GREG_MONTHS: GREG_MONTHS, DOW: DOW,
+    todayParts: todayParts, fmtTime: fmtTime, dayModel: dayModel,
+    day: function () { return day; },
+    rebuild: rebuild, renderMore: renderMore, openTasbih: openTasbih,
+    openLocationSheet: openLocationSheet, useGPS: useGPS,
+    enableNotifications: enableNotifications
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

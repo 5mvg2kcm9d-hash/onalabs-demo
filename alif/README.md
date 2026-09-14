@@ -22,8 +22,10 @@ index.html          markup, design tokens and all styling
 js/times.js         solar position, prayer time solver, Hijri calendar, Qibla
 js/app.js           state, Today / Qibla / Tracker / Settings, notifications
 js/quran.js         surah + juz index, search, reader, bookmarks
+js/extras.js        Islamic calendar, 99 Names of Allah, first-run setup
 data/surahs.js      114 surahs, 30 juz boundaries, 15 sajda ayahs   (8 KB)
 data/cities.js      2,193 cities with coordinates and IANA time zone (120 KB)
+data/names99.js     99 Names — Arabic, transliteration, meaning, verses (22 KB)
 data/quran-ar.js    Arabic, Uthmani script                          (1.3 MB)
 data/quran-en.js    English — Dr. Mustafa Khattab                   (876 KB)
 data/quran-nl.js    Nederlands — Sofian S. Siregar                  (948 KB)
@@ -52,6 +54,8 @@ regardless of where the device is.
   `risan/quran-json` datasets (Tanzil Uthmani script, Khattab and Siregar
   translations).
 - Cities and time zones: `kevinroberts/city-timezones`.
+- 99 Names of Allah: `KabDeveloper/99-Names-Of-Allah` (meanings, descriptions
+  and the verses each Name appears in).
 
 ## Storage
 
